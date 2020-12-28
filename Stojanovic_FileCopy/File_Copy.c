@@ -19,7 +19,7 @@ Abgabe: 28.12.2020
 Programm: Das Programm soll eine Datei kopieren mittels der Funktion "file_copy" 
             Es wird hierbei ein 20-Byte-Buffer verwendet und auch einige POSIX-Systemcalls
             wie open, read, write und close
-Github-Respo: 
+Github-Respo: https://github.com/Djordje-Stojanovic/FSST/tree/main/Stojanovic_FileCopy
 */
 
 //__________________________________________________________________
