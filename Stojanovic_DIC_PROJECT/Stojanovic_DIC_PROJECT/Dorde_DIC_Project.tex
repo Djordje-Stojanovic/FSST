@@ -1,0 +1,550 @@
+\documentclass[11pt]{scrartcl}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+%relevante Textformatierungen
+%\usepackage[ngerman]{babel}
+%Library bzw. Package mit deutschen Zeichen
+\usepackage{scrlayer-scrpage}
+\usepackage{amsmath,amssymb,amstext}
+%Mathepackage
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset { %
+    language=C,
+    backgroundcolor=\color{black!5}, % set backgroundcolor
+    basicstyle=\footnotesize,% basic font setting
+}
+
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\usepackage{graphicx}
+%Bilder einfügen Package
+\pagestyle{scrheadings}
+\clearscrheadfoot
+
+\bibliographystyle{Reference}
+
+\title{DIC - Project}
+\subtitle{Serial communication with a microcontroller}
+\author{by Dorde Stojanovic}
+\date{ }
+%falls datum gewünscht einfach Today	
+%Seblbsterklärend, die Sachen hier müssen aber im Document nochmal
+%per Befehl aufgerufen werden, erst dann werden sie in der PDF eingefügt.
+
+%Der Teil bis hier war nur des sogenannte "Präambel" also 
+%sozusagen voreinstellungen und konfigurationenen der Datei
+%Die Eigentliche Datei beginnt erst bei \begin{document}
+
+\begin{document}
+	\pagenumbering{gobble}
+	%Damit nicht nummeriert wird
+	\maketitle
+	%Titel einfügen den ich im Präamble "deklariert habe
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=9cm]{Deck-min}
+	\end{figure}		
+
+	\begin{flushleft}
+	\textbf{hand out on:}\dotfill \today
+	\linebreak
+	\textbf{supervisor:}\dotfill Lezuo Roland, DI
+	\linebreak
+	\textbf{student:}\dotfill Stojanovic Dorde
+	\linebreak
+	\textbf{year:}\dotfill 2020/21
+	\linebreak
+	\textbf{class:}\dotfill 5BHEL
+	\linebreak
+
+	%falls benötigt:
+	%\linebreak
+	%Teampartner:\dotfill Rieser David
+	\vspace*{1.5cm}
+	\end{flushleft}
+	
+	\begin{center}
+	\large{\hrulefill HTBLVA Anichstraße \hrulefill}
+	\end{center}
+	\newpage
+	
+	\tableofcontents
+	\newpage
+	
+	\section{General}
+	\subsection{Abstract}
+Via an ADC of the STM32F030F-microcontroller, measurement data is to be transmitted to a MAX485 via RS485.
+The measured values are transmitted by means of a 10-byte buffer.
+A USART 3 is to be used as the USART.
+The MAX485 is connected to the pins PC10 and PC11.
+A 38400 baud rate and ODD-Parity should be used.
+When the USART receives the data, the buffered measurements are to be returned.
+	\subsection{Disclaimer}
+Whenever the "Reference manual page" is referred to, the STM32F030xx Reference Manual is meant.
+\newline\newline
+Whenever only "Datasheet" is referred to, the STM32F030xx Datasheet is meant.
+	
+	
+	\newpage
+	\section{Prior Knowledge and Component Information}
+	\subsection{UART}
+		\footnote{\label{foot:1}Whole section adopted on 23.01.2021, from: https://www.circuitbasics.com/basics-uart-communication/} 
+UART stands for Universal Asynchronous Receiver/Transmitter. It’s not a communication protocol like SPI and I2C, but a physical circuit in a microcontroller, or a stand-alone IC. A UART’s main purpose is to transmit and receive serial data.
+One reason why UART is popular is that it only uses two wires to transmit data between devices.
+\newline\newline
+With UART communication, two UARTs communicate with each other in a very simple way. The receiving UART converts serial data into parallel data and sends it to the receiving device. The sending UART converts the parallel data of a controlling device, such as a central processing unit, into serial data and sends it back to the receiving part.
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=6cm,height=3.5cm]{uart1}
+		\caption{UART basic outline}
+	\end{figure}	\newline
+When the receiving UART detects a start bit, it starts to read the incoming bits at a specific frequency known as the baud rate. Baud rate is a measure of the speed of data transfer, expressed in bits per second (bps). Both UARTs must operate at about the same baud rate. The baud rate between the transmitting and receiving UARTs can only differ by about 10 percent before the timing of bits gets too far off. In Figure 2 you can see the table associated with the UART informations.
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=8cm,height=3.5cm]{uart2}
+		\caption{UART information table}
+	\end{figure}	
+	
+	\subsection{NVIC}
+	\footnote{\label{foot:2}Whole section adopted on 23.01.2021 from: https://www.motioncontroltips.com/what-is-nested-vector-interrupt-control-nvic/} 
+Nested vector interrupt control (NVIC) is a method of prioritizing interrupts, improving the MCU’s performance and reducing interrupt latency. NVIC also provides implementation schemes for handling interrupts that occur when other interrupts are being executed or when the CPU is in the process of restoring its previous state and resuming its suspended process.
+\newline\newline
+The term “nested” refers to the fact that in NVIC, a number of interrupts (up to several hundred in some processors) can be defined, and each interrupt is assigned a priority, with “0” being the highest priority. In addition, the most critical interrupt can be made non-maskable, meaning it cannot be disabled (masked).
+\newline\newline
+One function of NVIC is to ensure that higher priority interrupts are completed before lower-priority interrupts, even if the lower-priority interrupt is triggered first. For example, if a lower-priority interrupt is being registered* or executed and a higher-priority interrupt occurs, the CPU will stop the lower-priority interrupt and process the higher-priority one first. This looks as follows:
+\newline
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=11cm,height=5cm]{NVIC1}
+		\caption{NVIC flowchart}
+	\end{figure}	
+
+
+
+\newpage
+	\subsection{Full-duplex and Half-duplex}
+	The relevant part of this project deals with half-duplex, among other things. To better understand what this is, one should first understand what full-duplex is.
+	\paragraph{Full-Duplex} \mbox{}\\
+\footnote{\label{foot:3}Source-reference for this paragraph on 23.01.2021 from: https://searchnetworking.techtarget.com/definition/full-duplex} Full-duplex data transmission means that data can be transmitted in both directions on a signal carrier at the same time. For example, on a local area network with a technology that has full-duplex transmission, one workstation can be sending data on the line while another workstation is receiving data. Full-duplex transmission necessarily implies a bidirectional line (one that can move data in both directions).
+	\paragraph{Half-Duplex} \mbox{}\\
+	Data transmission with half-duplex,also called two-way operation, means that the information can be transmitted in both directions on one signal carrier. However, this is not possible at the same time.
+As with full-duplex transmissions, half-duplex technology also requires a bidirectional link. This can transmit data in both directions. The half-duplex method is still used today, for example, in door intercom systems or CB radio. 
+
+	
+	
+\newpage
+	\subsection{RS485}
+	\footnote{\label{foot:4}Source-reference on 23.01.2021 from: https://en.wikipedia.org/wiki/RS-485} 
+RS-485, also known as TIA-485(-A) or EIA-485, is a standard defining the electrical characteristics of drivers and receivers for use in serial communications systems. Electrical signaling is balanced, and multipoint systems are supported. Digital communications networks implementing the standard can be used effectively over long distances and in electrically noisy environments. Multiple receivers may be connected to such a network in a linear, multidrop bus. These characteristics make RS-485 useful in industrial control systems and similar applications.
+\newline\newline
+\footnote{\label{foot:5}Source-reference on 23.01.2021 from: https://web.archive.org/web/20130823142150/http://www.ti.com/lit/ds/slls877f/slls877f.pdf}
+These devices are fully compliant with a 5-V supply and can operate with a 3.3-V supply with reduced driver output voltage for low-power applications. Signaling Rates of 115 kbps, 1 Mbps, and up to 10 Mbps can be used but it depends on the transceiver. As a rule of thumb, the speed in bit/s multiplied by the length in metres should not exceed 108. Thus a 50-meter cable should not signal faster than 2 Mbit/s. In Figure 4 you can see the details about this.  The maximum distance is about 1200 metres.
+\newline
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=9cm,height=2cm]{speed}
+		\caption{RS485 speed-chart (from 5'Source-reference)}
+\end{figure}	
+\newline\newline
+\footnote{\label{foot:6}Source-reference: Same as 4'Source-reference}
+Ideally, the two ends of the cable will have a termination resistor connected across the two wires. Without termination resistors, signal reflections off the unterminated end of the cable can cause data corruption. Termination resistors also reduce electrical noise sensitivity due to the lower impedance. The value of each termination resistor should be equal to the cable characteristic impedance (typically, 120 ohms for twisted pairs). The termination also includes pull up and pull down resistors to establish fail-safe bias for each data wire for the case when the lines are not being driven by any device.
+\newline\newline
+\footnote{\label{foot:7}Source-reference on 24.01.2021 from: https://bit.ly/366aUxf (shortened link)}
+The maximum number of devices depends on the "height" of the unit load. At full unit load, up to 32 devices can be used. However,  fractional Unit-Load devices, such as the 1/8th Unit-Load SN65HVD21 and SN65HVD06, allow up to 256 devices on a single bus segment.
+
+
+
+\newpage
+	\subsection{MAX485}
+\footnote{\label{foot:8}Source-reference on 22.01.2021 from: http://www.icbase.com/File/PDF/CHI/CHI00111001.pdf}
+The MAX485 is a low-power transceiver for RS-485 and RS422 communication. The IC contains one driver and one receiver. The driver slew rate of the MAX485 is not limited, allowing them to transmit up to 2.5Mbps.
+\paragraph{Features} \mbox{}\
+\begin{itemize}
+  \item Half-duplex
+  \item Up to 32 Transceivers on the Bus
+  \item operate from a single 5V Supply
+  \item Data Rate: 2.5 Mbps
+  \item Low Quiescent Current: 300uA
+\end{itemize}
+\paragraph{Pin-Configuration} \mbox{}\\
+The MAX485 is an 8-pin IC. The Configuration can be seen in Figure 5. The Pin Description and the Function Table can be found on 8'Source-Reference (which is a MAX485-datasheet PDF reference) on page 2 \newline
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=6cm,height=4cm]{MAX485}
+		\caption{MAX485 Pin Configuration (from 8'Source-reference)}
+\end{figure}	
+
+
+
+\newpage
+	\subsection{Pin-multiplex}
+\footnote{\label{foot:9}Source-reference on 23.01.2021 from: https://docs.onion.io/omega2-docs/pin-multiplexing.html}
+A number of the available pins may be used for multiple purposes aside from general purpose input/output when needed. Such pins are stated as multiplexed pins. for instance, the UART pins are designated as UART, but by being, pins which are set as RX and TX pins of a UART can be reconfigured so that they can be used as GPIOs.
+	\subsection{Alternate-functions}
+Alternate functions are used to change the hardware-related function of a GPIO pin. They can be used in a lot of different situations. The GPIO system, including the alternate function settings, allows these pins to be reconfigured from the
+standard configurations to the on-board peripherals as input or output pins with full pull-up and pull-down control.
+
+
+
+	\newpage
+	\subsection{STM32F030F4}
+	\subsubsection{Brief description}
+\footnote{\label{foot:10}Quote from STM32F030xx Datasheet p.9}
+"The STM32F030x4/x6/x8/xC microcontrollers incorporate the high-performance Arm® Cortex®-M0 32-bit RISC core operating at a 48 MHz frequency, high-speed embedded memories (up to 256 Kbytes of Flash memory and up to 32 Kbytes of SRAM), and an extensive range of enhanced peripherals and I/Os. All devices offer standard communication interfaces (up to two I2Cs, up to two SPIs and up to six USARTs), one 12-bit ADC, seven general-purpose 16-bit timers and an advanced-control PWM timer. The STM32F030x4/x6/x8/xC microcontrollers operate in the -40 to +85 °C temperature range from a 2.4 to 3.6V power supply. A comprehensive set of power-saving modes allows the design of low-power applications. The STM32F030x4/x6/x8/xC microcontrollers include devices in four different packages ranging from 20 pins to 64 pins. Depending on the device chosen, different sets of peripherals are included. The description below provides an overview of the complete range of STM32F030x4/x6/x8/xC peripherals proposed. These features make the STM32F030x4/x6/x8/xC microcontrollers suitable for a wide range of applications such as application control and user interfaces, handheld equipment, A/V receivers and digital TV, PC peripherals, gaming and GPS platforms, industrial applications, PLCs, inverters, printers, scanners, alarm systems, video intercoms, and HVACs."
+\newpage
+	\subsubsection{General Problem}
+The task describes a procedure with the USART3 and the specified (PC10 and PC11) pins. However, a problem occurs here. The STM32F030F4 that we are going to use only has a \footnote{\label{foot:11}Which you can see in Figure 6}USART 1, and it does not contain PC10 and PC11 but only \footnote{\label{foot:12}Which you can see in Figure 7}PA-pins. 
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=14cm,height=13cm]{STM32}
+		\caption{device features (excerpt from STM32F030xx Datasheet p.10)}
+\end{figure}	
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=13cm,height=6cm]{pinpkg}
+		\caption{20-pin package pinout (excerpt from STM32F030xx Datasheet p.27)}
+\end{figure}	
+\newpage
+As we can see in figure 7, our component does not have a PC10 or PC11 pin. Instead it has the PA0-PA14 Pins which can be used.
+
+
+
+\newpage
+	\section{Configuration}
+	\subsection{Clock}
+	\subsubsection{Brief introduction}
+We have different options for the system clock. The clock pulse can be provided by HSI, by HSE or by PLL. The clocks of the AHB and ABP buses can be set or adjusted via the prescaler. We decide here to use the HSI-RC clock. This clock is already pre-configured to 8MHz and does not need to be configured externally.
+	\subsubsection{Clock Tree}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=14cm,height=14cm]{Clktree}
+		\caption{Clock Tree (excerpt from STM32F030xx Datasheet p.15)}
+\end{figure}	
+\footnote{\label{foot:13}Quote-reference: page 3, https://www.mouser.com/pdfdocs/clock-tree-101-timing-basics.pdf} "A clock tree is a clock distribution network within a system or hardware design. It
+includes the clocking circuitry and devices from clock source to destination." 
+\newline\newline
+The markings show the "configuration paths" which must be implemented, reconfigured or generally set. In this case, the SW takes HSI as the system clock, which is further used by HPRE and PPRE since the HSI is "multiplexed" through the SW. However, it must be noted that HPRE and PPRE also do not share the HSI which is used as SYSCLOCK.Then the ADC has two options. Either it is clocked by the HSI14RC (14 MHz) or the PCLK is taken, which comes from the AHB bus. In this case, the PCLK is taken because it can be easily divided by CKMODE. The last part to be considered is the USART. This uses the HSI as the clock, which is directly connected to the USART anyway, as you can easily see in Figure 8. For this, however, the USARTSW1 must also be reconfigured or set appropriately.
+
+
+
+\newpage
+	\subsubsection{Configuration of RCC-AHB}
+\footnote{\label{foot:14}p. 111 STM32F030xx Reference Manual}The RCC-AHBENR is the AHB peripherial clock enable register. Here, the clock for the PA pins used must be set. The relevant data is:
+\begin{itemize}
+  \item Address offset: 0x14
+  \item Reset value: 0x0000 0014
+  \item Access: no wait state, word, half-word and byte access
+\end{itemize}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=13cm,height=10cm]{huso2}
+		\caption{excerpt from Reference Manual page 39}
+\end{figure}	
+As you can see in Figure 9, the RCC-peripherial register of the AHB starts at 0x4002 1000 and goes up to 0x4002 13FF. If we now want to configure our AHB we need to look at the address that the AHB clock enable register is in. That can be seen in Figure 10.
+\newpage
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=13cm,height=8cm]{rccahbenr2}
+		\caption{excerpt from Reference Manual page 111}
+\end{figure}	
+We are interested in the bit 17, which, as you can see in Figure 11, stands for "I/O port A clock enable". The Bit is set to 1 because, as you can see in Figure 11, 1 means that the port is enabled. 
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=5cm,height=2cm]{rccahbenr3}
+		\caption{excerpt from Reference Manual page 111}
+\end{figure}	
+\newline
+With that we get a configuration of:\newline
+0000 0000 0000 0010 0000 0000 0000 0000 in binary, which transmits into:\newline
+0x0002 0000 in hexadecimal\newline\newline
+\footnote{\label{foot:15}For further information look at 4 Code on p. x}So what we do is, we go to the 0x40021000(starting adress of the register)+0x14(address offset) address and reconfigure the register itself into 0x0002 0000
+
+
+
+\newpage
+	\subsubsection{Configuration of APB}
+One page further in the reference manual, or rather page 112, you can already find the next register that needs to be changed, the APB peripheral clock enable register 2 (RCC-APB2ENR) Since this register is also connected to the AHB bus via the RCC, the address range is the same as for the previous register, i.e. 0x4002 1000-0x4002 13FF. Figure 12 shows the characteristics of this register.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=3.25cm]{apb2enr}
+		\caption{excerpt from Reference Manual page 112}
+\end{figure}
+\newline
+The corresponding register is shown in Figure 13
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=3.25cm]{apb2enr2}
+		\caption{excerpt from Reference Manual page 113}
+\end{figure}
+\newline
+In this register we are only interested in bit 14 and bit 9. Bit 14, as you can see in Figure 14, sets the clock for the USART1 on or off, we want to set pin 14 to 1 because we need the clock of the USART1. Bit 9, as you can also see in Figure 15, sets the ADC interface clock on or off. We want to set it to 1 because we need the ADC interface clock. All other configurable bits are set to 0 because we do not need them.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=6cm,height=1.8cm]{apb2enr3}
+		\caption{excerpt from Reference Manual page 113}
+\end{figure}
+\newpage
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=6cm,height=1.8cm]{apb2enr4}
+		\caption{excerpt from Reference Manual page 114}
+\end{figure}
+From this information we arrive at a binary configuration of: \newline
+0000 0000 0000 0100 0010 0000 0000 which then transmits to \newline
+0x0000 4200 in hexadecimal.
+\newline\newline
+\footnote{\label{foot:16}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x40021000(starting adress of the register)+0x18(address offset) address and reconfigure the register itself into 0x0000 4200
+
+
+
+\newpage
+	\subsubsection{Configuration of USART1SW}
+The next register can be found on Reference Manual Page 123, namely the RCC\_CFGR3 or Clock configuration register 3. Here the USARTSW1 must be configured. Since again this register is also connected to the AHB bus via the RCC, the address range is the same as for the previous register, i.e. 0x4002 1000-0x4002 13FF. Figure 16 shows both the characteristics of the register and the register itself. 
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=5cm]{usartsw11}
+		\caption{excerpt from Reference Manual page 123}
+\end{figure}
+\newline
+In this register we are only interested in bit 0 and bit 1. As you can see in Figure 17 these two bits have 4 different configurations, we want combination 11 because it uses our pre-selected HSI CLK as USART1 clock. So we can say that all other bits except 0 and 1 are set to value 0 and the pins 0 and 1 get the value 1 configured.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=3cm]{usartsw12}
+		\caption{excerpt from Reference Manual page 123}
+\end{figure}
+\newline
+This information results in a binary configuration of:\newline
+0000 0000 0000 0000 0000 0011, which is:\newline
+0000 0003 in hexadecimal.
+\newline\newline
+\footnote{\label{foot:17}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x40021000(starting adress of the register)+0x30(address offset) address and reconfigure the register itself into 0x0000 0003
+
+
+\newpage
+	\subsection{Pins}
+	\subsubsection{Brief introduction}
+As you can see in Figure 18, the boundary address of the GPIOA register ranges from 0x4800 0000 - 0x480003FF. The registers themselves are thus in the AHB2 bus. On page 25 of the data sheet you can have a look at the pinout and pin description if you wish. The GPIOs are described in the Reference manual page 127.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=14cm,height=11cm]{huso1}
+		\caption{excerpt from Reference Manual page 39}
+\end{figure}
+
+
+
+\newpage
+	\subsubsection{Pin Type Configuration}
+The register we use for this configuration will be the GPIOx\_MODER register, which can be found on Reference manual page 136. The register is located in the address range marked on Figure 18. Figure 19 shows the characteristics of the register as well as the register itself.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=13cm,height=8.25cm]{gpio2}
+		\caption{excerpt from Reference Manual page 136}
+\end{figure}
+In Figure 19 we can see three different things. First, we see the characteristics of the GPIO port mode register. Secondly, we see the register itself. And thirdly, we see the configuration settings for the respective bit pair combinations. For example, a bit combination of 11 sets the respective port to analogue mode, etc. PA9 and PA10 must be configured as alternate function pins for the USART. Furthermore, I personally choose pin PA2 and pin PA3 as output for the MAX485.
+\newline\newline
+This results in a bit combination of 01 for MODER2 and MODER3 to use them as general purpose output. For MODER10 and MODER11, this results in combinations of 10 each to use them for alternate function purposes. 
+\newline\newline
+This finally results in the binary combination of: 0000 0000 0010 1000 0000 0000 0101 0000 which is 0028 0050 in hexadecimal.
+\newline\newline
+\footnote{\label{foot:18}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4800 0000(starting adress of the register)+0x00(address offset) address and reconfigure the register itself into 0x0028 0050
+
+
+
+\newpage
+	\subsubsection{Alternate Function Configuration}
+The next thing to do is to configure the Alternate Functions. We have as default the pins PA9 and PA10 on which alternate functions have to be configured. 
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=10cm,height=6.5cm]{gpio3}
+		\caption{excerpt from Reference Manual page 141}
+\end{figure}
+The register responsible for this is the GPIO alternate function high register (GPIOx\_AFRH) - shown in Figure 20. The register is located in the address range marked in Figure 18. Figure 20 shows the characteristics of the GPIOx\_AFRH register as well as the register itself. Below the register you can see the Alternate function selection. As we can see in Figure 21 the Alternate Function for USART1\_RX as well as for USART1\_TX is directly shown and marked in the tabel.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=8cm,height=6.5cm]{gpio4}
+		\caption{excerpt from STM32F030xx Datasheet page 34}
+\end{figure}
+As we can see in Figure 21 we need to use the AF1 for our USART1\_RX and USART1\_TX. So for the AFSEL10 and AFSEL9 we have to put on both a bit combination of 0001 as shown in Figure 20. \newline\newline
+This finally results in the binary combination of: 0000 0000 0000 0000 0000 0001 0001 0000 which is 0000 0110 in hexadecimal.
+\newline\newline
+\footnote{\label{foot:19}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4800 0000(starting adress of the register)+0x24(address offset) address and reconfigure the register itself into 0x0000 0110
+
+
+
+\newpage
+	\subsubsection{GPIOA Pins Configuration}
+The register responsible for this is the GPIO port input data register (GPIOx\_ODR) - shown in Figure 22. The register is located in the address range marked in Figure 18. Figure 22 shows the characteristics of the GPIOx\_ODR register as well as the register itself. Below the register you can see the configurations that can be made for various bits.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=14cm,height=7cm]{gpio6}
+		\caption{excerpt from Reference Manual page 138}
+\end{figure}
+\newline
+As we can see in Figure 22, Bits from 0 to 15 can be set. We have to set the value 1 on bits ODR3 and ODR2 because these are the needed bits for the pins PA02 and PA03 that we chose on 3.2.2 Pin Type Configuration \newline\newline
+This finally results in the binary combination of: 0000 0000 0000 0000 0000 0000 0000 1100 which is 0000 000C in hexadecimal.
+\newline\newline
+\footnote{\label{foot:20}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4800 0000(starting adress of the register)+0x14(address offset) address and reconfigure the register itself into 0x0000 000C
+	
+	
+	
+\newpage
+	\subsection{USART}
+	\subsubsection{Brief introduction}
+\footnote{\label{foot:21}Quote from Reference Manual p.595} "The universal synchronous asynchronous receiver transmitter (USART) offers a flexible means of Full-duplex data exchange with external equipment requiring an industry standard NRZ asynchronous serial data format. The USART offers a very wide range of baud rates using a programmable baud rate generator. It supports synchronous one-way communication and Half-duplex Single-wire communication, as well as multiprocessor communications. It also supports Modem operations (CTS/RTS). High speed data communication is possible by using the DMA (direct memory access) for multibuffer configuration."
+\newline\newline
+As you can see in Figure 23, the boundary address of the USART1 register ranges from 0x4001 3800 - 0x4001 3BFF. The registers themselves are thus in the APB bus.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=14cm,height=11cm]{usart1}
+		\caption{excerpt from Reference Manual page 40}
+\end{figure}
+The main features of the USART are also listed on Reference Manual p.595. The data transmission we want to perform corresponds to the USART calibration and therefore the transmitted frames consist of the following things: a start bit, idle lines which are "inserted" before the process and finally, depending on the length of the data word contained, a certain number (1 or 2) of stop bits. The data word can only have a length of 8 or 9 bits.
+	\subsubsection{USART given information}
+The following options and configurations should apply to the USART:
+\begin{itemize}
+  \item Baudrate: 38400
+  \item Parity: odd
+  \item	Pins: RX, TX
+  \item data word lenght: 8
+\end{itemize}
+
+
+
+\newpage
+	\subsubsection{Control Register 1}
+In the USART1 there is one crucial point, a register in which most of the USART can be set, namely the Control Register 1. The Control Register 1 is shown in Figure 24. The register is located in the address range marked in Figure 23. 
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=5cm]{usart2}
+		\caption{excerpt from Reference Manual page 625}
+\end{figure}
+\newline
+Figure 24 shows the characteristics of the USART\_CR1 register as well as the register itself. DISCLAIMER: Whenever said "marked as" on this section, it is refered to a bit nickname that is shown in Figure 24.
+\newline\newline
+Firstly we go on with the Receiver enable, which is located on bit 2 and marked as "RE". It provides us the settings shown in Figure 25. Because we need it enabled, we are setting this bit to 1.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=8cm,height=1.5cm]{usart4}
+		\caption{excerpt from Reference Manual page 627}
+\end{figure}
+\newpage
+Secondly we go to the Transmitter enable, which is located on bit 3 and marked as "TE". It provides us the settings shown in Figure 26. Because we need it enabled, we are setting this bit to 1.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=2.5cm]{usart6}
+		\caption{excerpt from Reference Manual page 627}
+\end{figure}
+\newline
+Thirdly we go further to the parity selection, this is the "PS" at bit 9 and provides the settings shown in Figure 27. Because we need odd parity we set this bit to 1.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=2.5cm]{usart3}
+		\caption{excerpt from Reference Manual page 626}
+\end{figure}
+\newline
+Fourthly we go to the parity control enable, which is located on bit 10 and marked as "PCE". It provides the settings shown in Figure 28. Because we need parity control enabled we set this bit to 1.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=2.5cm]{usart7}
+		\caption{excerpt from Reference Manual page 626}
+\end{figure}
+\newline
+\textbf{Here comes one major problem:} As you can see in Figure 28 the PCE can only be configured when the USART is disabled, this is why we don't configure UE or better said USART enable firstly. When we have made all the settings or configured them, we take care of the UART.
+\newpage
+Lastly we are going to set the data word length, which is located on bit 28 and bit 12, as you can see on Figure 29. When both bits are set to 0 we have our desired word length of 8 data bits and n stop bits.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=11cm,height=4.5cm]{usart9}
+		\caption{excerpt from Reference Manual page 626}
+\end{figure}
+\newline\newline
+This finally results in the binary combination of: 0000 0000 0000 0000 0000 0110 0000 1100 which is 0000 060C in hexadecimal.
+\newline\newline
+\footnote{\label{foot:22}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4001 3800(starting adress of the register)+0x00(address offset) address and reconfigure the register itself into 0x0000 060C
+
+
+
+\newpage
+	\subsubsection{Baudrate}
+The next thing to do is to configure the Baudrate. We have to calculate USARTDIV for an oversampling case of 16, For this we need to take a look at Figure 30.  
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=11cm,height=2cm]{usart10}
+		\caption{excerpt from Reference Manual page 609}
+\end{figure}
+\newline
+We know that we have given $f_Ck$ and the baud. so we can by very easy mathematical transformation to the formula: \(USARTDIV = clock / baudrate\) If we now substitute into this formula we get \(USARTDIV = 8 000 000 Hz / 38400\) = results in rounded up 209
+\newline\newline
+The register responsible for this is the Baud rate Register (USART\_BRR) - shown in Figure 31. The register is located in the address range marked in Figure 23. Figure 31 shows the characteristics of the USART\_BRR register as well as the register itself. Under the register you can see the possible bit configuration settings.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=10cm]{usart11}
+		\caption{excerpt from Reference Manual page 633}
+\end{figure}
+\newline
+We have precalculated 209 as the setting we need for the USARTDIV, now we have to convert it into binary:\newline
+0000 0000 0000 0000 0000 0000 1101 0001, which is:\newline
+0000 0001 in hexadecimal
+\newline\newline
+\footnote{\label{foot:23}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4001 3800(starting adress of the register)+0x0C(address offset) address and reconfigure the register itself into 0x0000 00D1
+
+
+
+\newpage
+	\subsubsection{USART enabling}
+As mentioned on page 28 PCE can only be configured if USART is disabled, so now that we configured everything we need we are going to enable the USART.
+So we go to the USART enable, which is located on bit 0 (on Figure 24) and marked as "UE". It provides us with 2 modes shown in Figure 25. As we need it enabled we set this bit to 1.
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=12cm,height=2.5cm]{usart5}
+		\caption{excerpt from Reference Manual page 627}
+\end{figure}
+\newline
+so now we get 0000 0000 0000 0000 0000 0000 0000 0001, which is:\newline
+0000 0001 in hexadecimal
+\newline\newline
+\footnote{\label{foot:24}For further information look at 4. Code from p. x to p.}So what we do is, we go to the 0x4001 3800(starting adress of the register)+0x00(address offset) address and reconfigure the register itself into 0x0000 0001
+
+
+
+\newpage
+	\section{Program}
+	\subsection{Github - Repo}
+	https://github.com/Djordje-Stojanovic/FSST/tree/main/Stojanovic\_DIC\_PROJECT
+	\subsection{C-Code}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=12cm]{funk1}
+		\caption{Clock configuration - excerpt from Stojanovic\_DIC\_Project1.c}
+\end{figure}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=12cm]{funk2}
+		\caption{PIN configuration - excerpt from Stojanovic\_DIC\_Project1.c}
+\end{figure}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=12cm]{funk3}
+		\caption{USART configuration - excerpt from Stojanovic\_DIC\_Project1.c}
+\end{figure}
+\begin{figure}[h]
+		\centering
+		\includegraphics[width=15cm,height=6cm]{funk4}
+		\caption{Main function - excerpt from Stojanovic\_DIC\_Project1.c}
+\end{figure}
+	
+
+	
+
+\end{document}

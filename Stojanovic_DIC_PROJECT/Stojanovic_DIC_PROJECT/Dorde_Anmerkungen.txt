@@ -1,0 +1,55 @@
+Vorwort: (copy paste aus mail und moodle) 
+Wie Sie wissen bin ich einer der Schüler, welche
+erst vor ein paar Tagen angefangen haben an dem Projekt
+zu arbeiten. Ich habe in der Klasse nach Ihrer Mail am
+Samstag Abend gefragt und wir erhielten unter anderem
+super informationen vom Fabio wie man es am besten noch
+angehen sollte. Außerdem sagten 3 schüler bei Ihnen wäre
+es "klar positiv" ab dem zeitpunkt wo Sie die Clock 
+configuration und pin configuration bzw. bei 2 von 3 auch
+die USART hatten. Ich habe das alles am Sonntag hingekriegt
+und bin jetzt um 05:03 wo ich das schreibe zu 99% fertig mit
+der Dokumentation. Leider hab ich den ADC und die Interrupts
+zeitlich halt nicht hinbekommen. Ich werde das alles noch
+nachliefern, ich hoffe aber das meine Leistung für ein
+Genügend im Halbjahreszeugnis ausrechen wird. Es war halt
+ein sehr großer Fehler den ich zum wiederholten mal mache,
+zu spät anfangen. Ich habe aber das was ich gemacht habe
+so qualitativ gemacht wie ich es in der zeit die ich mir
+selber gegeben habe konnte. Habe auch versucht alles strukturiert
+zu dokumentieren, auch die Doku passt chronologisch mit dem 
+Code überein.
+In den Anmerkungen ist immer mein Gedanke
+zu der jeweiligen Seite runtergeschrieben.
+
+
+Seite 1: nur deckblatt
+_______________________________________________________
+Seite 3: weil für mich selbst UART bis zu diesem projekt
+unbekannt war, da in der 4. in der grundlegenden gruppe
+nichts dazu gemacht wurde habe ich mich entschieden hier
+eine kleine einführung bzw mini zusammenfassung renizutun
+_______________________________________________________
+Seite 4: Den NVIC hatten wir zwar in der 3. mit Herr 
+Stumpfel ganz kurz angesprochen aber davon war bis zu 
+diesem Projekt nichts in meinem Kopf, da der NVIC bei 
+diesem Projekt relevant wäre habe ich auch hierzu 
+Grundlagen reingetan, weil das eben war was ich bei 
+diesem Projekt als erstes gemacht habe.
+_____________________________________________________
+Seite 6: habe hier sehr viele Quellen als Zitat und 
+Referenzquellen genommen
+_____________________________________________________
+zwischen Seite 27 und Seite 31 ist mir sehr wahrscheinlich
+ein fehler aufgetreten. Ich habe ja am Anfang den UE pin 
+bzw. die USART enable ausgelassen damit ich zuerst alles 
+andere konfiguriere und damit alles kompatibel ist. Ich 
+hätte vielleicht dann auf der seite 31 als ich den USART
+enabelt habe nochmal alle Pins von seite 27-29 mitnehmen 
+sollen weil ich glaube dass ich so wieder alles auf Null
+gesetzt habe. Ich bin mir zwar nicht sicher ob das jetzt
+wirklich falsch ist aber ich denke es stark. Wäre mir sehr
+komisch wenn es doch richtig ist.
+_____________________________________________________
+_____________________________________________________
+_____________________________________________________
