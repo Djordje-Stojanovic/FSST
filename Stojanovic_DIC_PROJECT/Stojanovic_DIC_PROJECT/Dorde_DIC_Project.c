@@ -5,7 +5,7 @@ supervisor: Roland Lezuo
 Class: 5BHEL
 Last Update: 25.01.2021
 Programm: This program is related to the dic-project of first semester of th 5BHE-FSST-class
-Github-Respo: https://github.com/Djordje-Stojanovic/FSST/tree/main/Stojanovic_DIC_PROJECT
+Github-Respo: https://github.com/Djordje-Stojanovic/FSST/tree/main/Stojanovic_DIC_PROJECT/Stojanovic_DIC_PROJECT
 
 *******************************************************************************/
 
