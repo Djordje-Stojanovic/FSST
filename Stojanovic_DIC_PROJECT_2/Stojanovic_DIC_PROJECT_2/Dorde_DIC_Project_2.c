@@ -3,7 +3,7 @@
 Author: Dorde Stojanovic
 supervisor: Roland Lezuo
 Class: 5BHEL
-Last Update: 18.04.2021
+Last Update: 17.04.2021
 Programm: This program is related to the dic-project of second semester of th 5BHE-DIC-class
 Github-Repo: https://github.com/Djordje-Stojanovic/FSST/tree/main/Stojanovic_DIC_PROJECT_2
 
